@@ -37,7 +37,7 @@ def check_version():
 def find(partial):
     '''
     Run shell `find` regex
-    find -E . -iregex '^./(.*/)+.*{0}.*'
+    find -E . -iregex '^./(.*/)?.*{0}.*'
 
     If multiple files are found, call prompt() with list
     '''
@@ -46,7 +46,7 @@ def find(partial):
         '-E',
         '.',
         '-iregex',
-        '^./(.*/)+.*{0}.*'.format(partial)
+        '^./(.*/)?.*{0}.*'.format(partial)
     ]
     matches = subprocess.check_output(command).split('\n')
     # Remove last empty string
