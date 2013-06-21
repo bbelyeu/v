@@ -13,12 +13,22 @@ VERBOSE = False
 
 try:
     import os
-    import subprocess
+    import re
     import sys
 except ImportError as e:
     module = str(e).split()[-1]
     print "Required Python module missing: ", e
     sys.exit(SYS_ERROR)
+
+
+def calculate_score(pattern, path):
+    '''
+    Get the score for a given path matching a pattern
+    '''
+    match = re.search(pattern, path)
+
+    return 0 if match is None else \
+        100.0 / ((1 + match.start()) * (match.end() - match.start() + 1))
 
 
 def check_version():
@@ -36,25 +46,35 @@ def check_version():
 
 def find(partial):
     '''
-    Run shell `find` regex
-
+    Walk directory path and find files matching search
     If multiple files are found, call prompt() with list
     '''
     # Make the search fuzzy match
-    search = ''
-    for char in partial:
-        search += '{0}(.*)?'.format(char)
+    search = '.*?'.join(map(re.escape, list(partial)))
 
-    command = [
-        'find',
-        '-E',
-        '.',
-        '-iregex',
-        '^./(.*)?{0}'.format(search)
-    ]
-    matches = subprocess.check_output(command).split('\n')
-    # Remove last empty string
-    matches.pop()
+    rootdir = os.getcwd()
+    all_files = []
+    for root, subFolders, files in os.walk(rootdir):
+        for f in files:
+            # Skip files that end in .swp
+            if f.endswith('.swp'):
+                continue
+
+            full_path = os.path.abspath(os.path.join(root, f))
+
+            # Also skip files in .git folder
+            if '.git' in full_path:
+                continue
+
+            all_files.append(full_path)
+
+    scores = []
+    for f in all_files:
+        scores.append(calculate_score(search, f))
+
+    # Zip scores & all files together, but only for scores > 0
+    matches = [f for (score, f) in sorted(zip(scores, all_files),
+               reverse=True) if score > 0]
 
     if len(matches) == 1:
         target = matches[0]
@@ -140,9 +160,7 @@ def vim_open(path):
     '''
     Open the given file path in vim
     '''
-    cwd = subprocess.check_output('pwd')
-    fullpath = cwd[:-1] + path[1:]
-    os.execlp('vim', 'vim', fullpath)
+    os.execlp('vim', 'vim', path)
 
 
 if __name__ == '__main__':
