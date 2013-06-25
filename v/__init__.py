@@ -88,10 +88,13 @@ def main():
     '''
     Run
     '''
-    check_version()
-    partial = parse_args()
-    path = find(partial)
-    vim_open(path)
+    try:
+        check_version()
+        partial = parse_args()
+        path = find(partial)
+        vim_open(path)
+    except KeyboardInterrupt:
+        sys.exit(SYS_ERROR)
 
 
 def parse_args():
