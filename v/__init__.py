@@ -9,6 +9,7 @@ subtree matching a partially given filename.
 REQUIRED_PYTHON = (2, 7)
 SYS_ERROR = 42
 VERBOSE = False
+CHAR_COMBOS = {}
 
 
 try:
@@ -21,14 +22,48 @@ except ImportError as e:
     sys.exit(SYS_ERROR)
 
 
-def calculate_score(pattern, path):
+def calculate_score(regex, literal, path):
     '''
     Get the score for a given path matching a pattern
+    If the path ends with the pattern, give the highest score
+    Also if the pattern is an exact match in the path, give a high score
+    Otherwise, do more complicated algorithm to decide what I'm really
+    trying to find.
+    Also if no 2 characters in the string are in a row, assume that
+    isn't really what we're looking for and discard
     '''
-    match = re.search(pattern, path)
+    if path.endswith(literal):
+        score = 100
+    elif literal in path:
+        # This is an exact match to give it a high score
+        # Start with 100, but give more precendence to an exact match
+        # ending with the exact match
+        match = re.search(regex, path)
+        len_from_end = len(path) - match.end()
+        score = 100 - len_from_end
+    else:
+        match = re.search(regex, path)
+        # A match is scored more if the characters in the patterns are closer
+        # to each other and if it's closer to the end of the path
+        if match is None:
+            score = 0
+        else:
+            # Check if any 2 characters in the pattern are consecutive in path
+            char_combos = get_char_combos(literal)
+            any_match = False
+            for cc in char_combos:
+                if cc in path:
+                    any_match = True
+                    break
 
-    return 0 if match is None else \
-        100.0 / ((1 + match.start()) * (match.end() - match.start() + 1))
+            if any_match is False:
+                score = 0
+            else:
+                distance_between = match.end() - match.start()
+                len_from_end = len(path) - match.end()
+                score = 100 - len_from_end - distance_between
+
+    return score
 
 
 def check_version():
@@ -70,7 +105,7 @@ def find(partial):
 
     scores = []
     for f in all_files:
-        scores.append(calculate_score(search, f))
+        scores.append(calculate_score(search, partial, f))
 
     # Zip scores & all files together, but only for scores > 0
     matches = [f for (score, f) in sorted(zip(scores, all_files),
@@ -82,6 +117,29 @@ def find(partial):
         target = prompt(matches)
 
     return target
+
+
+def get_char_combos(chars):
+    '''
+    Get the 2 letter character combos from a string
+    '''
+    global CHAR_COMBOS
+    combo_list = CHAR_COMBOS.get(chars)
+
+    if combo_list is None:
+        char_list = []
+        combo_list = []
+        for char in chars:
+            char_list.append(char)
+        for key, val in enumerate(char_list):
+            try:
+                next_key = key + 1
+                combo_list.append(val + char_list[next_key])
+            except IndexError:
+                break
+        CHAR_COMBOS[chars] = combo_list
+
+    return combo_list
 
 
 def main():
