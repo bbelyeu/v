@@ -57,7 +57,7 @@ def find(partial):
     for root, subFolders, files in os.walk(rootdir):
         for f in files:
             # Skip files that end in .swp
-            if f.endswith('.swp'):
+            if f.endswith(('.swp', '.pyc')):
                 continue
 
             full_path = os.path.abspath(os.path.join(root, f))
